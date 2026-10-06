@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ink">#20211E</color>
+    <color name="muted_ink">#666860</color>
+    <color name="canvas">#F8F8F4</color>
+    <color name="card">#FFFFFF</color>
+    <color name="sage">#DDEBDD</color>
+    <color name="sage_ink">#285138</color>
+    <color name="lavender">#EAE4F7</color>
+    <color name="lavender_ink">#514374</color>
+    <color name="line">#E8E8E2</color>
+</resources>

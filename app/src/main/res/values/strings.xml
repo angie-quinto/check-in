@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Check In</string>
+    <string name="notification_channel_name">Hourly check-ins</string>
+    <string name="notification_channel_description">Gentle reminders to take a moment and notice how you feel.</string>
+</resources>

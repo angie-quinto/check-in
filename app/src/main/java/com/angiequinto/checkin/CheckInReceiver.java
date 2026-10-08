@@ -35,15 +35,30 @@ public class CheckInReceiver extends BroadcastReceiver {
         if (ACTION_OK.equals(action) || ACTION_NOT_OK.equals(action)) {
             NotificationManager manager = context.getSystemService(NotificationManager.class);
             manager.cancel(NOTIFICATION_ID);
-            MoodHistoryStore.record(context, ACTION_OK.equals(action));
-            String message = ACTION_OK.equals(action)
-                    ? "Glad to hear it."
-                    : "Thank you for noticing. Take it gently.";
+
+            long lastTime = MoodHistoryStore.getLastCheckInTime(context);
+            long interval = UserPreferences.getInterval(context);
+            long cooldown = Math.max(5 * 60 * 1000L, interval);
+            if (lastTime > 0 && (System.currentTimeMillis() - lastTime) < cooldown) {
+                Toast.makeText(context, "You recently checked in. Take a gentle breath.", Toast.LENGTH_SHORT).show();
+                CheckInWidgetProvider.updateWidgets(context);
+                return;
+            }
+
+            boolean okay = ACTION_OK.equals(action);
+            MoodHistoryStore.record(context, okay);
+            String message = okay
+                    ? "Continue being positive. Carry this steady light forward."
+                    : "Take a gentle breath. You're doing the best you can.";
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show();
+            CheckInWidgetProvider.updateWidgets(context);
         }
     }
 
     public static void showReminder(Context context) {
+        if (CheckInWidgetProvider.hasWidgets(context)) {
+            return;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -76,8 +91,8 @@ public class CheckInReceiver extends BroadcastReceiver {
                 .setCategory(Notification.CATEGORY_REMINDER)
                 .setAutoCancel(true)
                 .setOnlyAlertOnce(true)
-                .addAction(okayAction)
                 .addAction(notOkayAction)
+                .addAction(okayAction)
                 .build();
         manager.notify(NOTIFICATION_ID, notification);
     }

@@ -28,7 +28,7 @@ public final class ReminderScheduler {
     }
 
     public static void scheduleNext(Context context) {
-        if (!isEnabled(context)) {
+        if (!isEnabled(context) || CheckInWidgetProvider.hasWidgets(context)) {
             return;
         }
 

@@ -40,11 +40,14 @@ public class MainActivity extends android.app.Activity {
     private final int line = Color.rgb(232, 232, 226);
 
     private TextView reassurance;
+    private TextView okayButton;
+    private TextView notOkayButton;
     private TextView reminderDetail;
     private TextView intervalDetail;
     private TextView welcomeIntervalDetail;
     private LinearLayout historyPreviewEntries;
     private TextView historyPreviewEmpty;
+    private LinearLayout statisticsCardContainer;
     private Switch reminderSwitch;
     private boolean settingSwitch;
     private boolean showingHistory;
@@ -158,6 +161,7 @@ public class MainActivity extends android.app.Activity {
 
         page.addView(createMoodCard(), margins(0, 28, 0, 14));
         page.addView(createHistoryCard(), margins(0, 0, 0, 14));
+        page.addView(createStatisticsCard(), margins(0, 0, 0, 14));
         page.addView(createRhythmCard(), margins(0, 0, 0, 14));
         page.addView(createNameRow(), margins(0, 0, 0, 18));
         page.addView(createPrivacyNote(), fullWidth());
@@ -185,17 +189,44 @@ public class MainActivity extends android.app.Activity {
         overline.setLetterSpacing(0.13f);
         moodCard.addView(overline);
         moodCard.addView(text("What feels most true?", 23, ink, Typeface.BOLD), margins(0, 9, 0, 18));
-        TextView okayButton = actionButton("I’m okay", "A simple moment of recognition", sage, sageInk);
+        okayButton = actionButton("I’m okay", "A simple moment of recognition", sage, sageInk);
         okayButton.setOnClickListener(v -> respond(true));
         moodCard.addView(okayButton, fullWidth());
-        TextView notOkayButton = actionButton("Not really", "It’s okay not to be okay", lavender, lavenderInk);
+        notOkayButton = actionButton("Not really", "It’s okay not to be okay", lavender, lavenderInk);
         notOkayButton.setOnClickListener(v -> respond(false));
         moodCard.addView(notOkayButton, margins(0, 12, 0, 0));
         reassurance = text("", 15, mutedInk, Typeface.NORMAL);
         reassurance.setVisibility(View.GONE);
         reassurance.setLineSpacing(dp(3), 1f);
         moodCard.addView(reassurance, margins(0, 17, 0, 0));
+        updateMoodCardState();
         return moodCard;
+    }
+
+    private void updateMoodCardState() {
+        if (okayButton == null || notOkayButton == null || reassurance == null) return;
+        long lastTime = MoodHistoryStore.getLastCheckInTime(this);
+        long interval = UserPreferences.getInterval(this);
+        long cooldown = Math.max(5 * 60 * 1000L, interval);
+        long elapsed = System.currentTimeMillis() - lastTime;
+        boolean inCooldown = (lastTime > 0 && elapsed < cooldown);
+
+        List<MoodHistoryStore.Entry> entries = MoodHistoryStore.loadAll(this);
+        boolean lastOkay = entries.isEmpty() || entries.get(0).okay;
+
+        if (inCooldown) {
+            okayButton.setVisibility(View.GONE);
+            notOkayButton.setVisibility(View.GONE);
+            reassurance.setText(lastOkay
+                    ? "Continue being positive. Carry this steady light forward."
+                    : "Take a gentle breath. You're doing the best you can.");
+            reassurance.setTextColor(lastOkay ? sageInk : lavenderInk);
+            reassurance.setVisibility(View.VISIBLE);
+        } else {
+            okayButton.setVisibility(View.VISIBLE);
+            notOkayButton.setVisibility(View.VISIBLE);
+            reassurance.setVisibility(View.GONE);
+        }
     }
 
     private View createHistoryCard() {
@@ -235,6 +266,88 @@ public class MainActivity extends android.app.Activity {
             historyPreviewEntries.addView(createHistoryRow(entries.get(i)),
                     margins(0, i == 0 ? 0 : 8, 0, 0));
         }
+        updateMoodCardState();
+        if (statisticsCardContainer != null) {
+            updateStatisticsCard(statisticsCardContainer);
+        }
+    }
+
+    private View createStatisticsCard() {
+        LinearLayout statsCard = vertical();
+        statsCard.setPadding(dp(20), dp(18), dp(20), dp(18));
+        statsCard.setBackground(roundRect(card, 24, line, 1));
+        statisticsCardContainer = statsCard;
+        updateStatisticsCard(statsCard);
+        return statsCard;
+    }
+
+    private void updateStatisticsCard(LinearLayout statsCard) {
+        statsCard.removeAllViews();
+        TextView overline = label("STATISTICS", 11, mutedInk);
+        overline.setLetterSpacing(0.13f);
+        statsCard.addView(overline);
+        statsCard.addView(text("Mood summary & timeline", 18, ink, Typeface.BOLD), margins(0, 4, 0, 14));
+
+        MoodHistoryStore.Stats stats = MoodHistoryStore.loadStats(this);
+        if (stats.total == 0) {
+            TextView empty = text("Your reflection insights and timeline will appear here once you check in.", 14, mutedInk, Typeface.NORMAL);
+            empty.setLineSpacing(dp(3), 1f);
+            statsCard.addView(empty);
+        } else {
+            LinearLayout row1 = new LinearLayout(this);
+            row1.setGravity(Gravity.CENTER_VERTICAL);
+            row1.addView(text("Total check-ins", 15, mutedInk, Typeface.NORMAL),
+                    new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            row1.addView(text(String.valueOf(stats.total), 16, ink, Typeface.BOLD));
+            statsCard.addView(row1);
+
+            View divider1 = new View(this);
+            divider1.setBackgroundColor(line);
+            statsCard.addView(divider1, fixedHeightMargins(1, 0, 10, 0, 10));
+
+            LinearLayout row2 = new LinearLayout(this);
+            row2.setGravity(Gravity.CENTER_VERTICAL);
+            row2.addView(text("● I’m okay", 15, sageInk, Typeface.BOLD),
+                    new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            row2.addView(text(stats.okayCount + " (" + stats.okayPercentage() + "%)", 16, sageInk, Typeface.BOLD));
+            statsCard.addView(row2);
+
+            View divider2 = new View(this);
+            divider2.setBackgroundColor(line);
+            statsCard.addView(divider2, fixedHeightMargins(1, 0, 10, 0, 10));
+
+            LinearLayout row3 = new LinearLayout(this);
+            row3.setGravity(Gravity.CENTER_VERTICAL);
+            row3.addView(text("● Not really", 15, lavenderInk, Typeface.BOLD),
+                    new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            row3.addView(text(stats.notOkayCount + " (" + stats.notOkayPercentage() + "%)", 16, lavenderInk, Typeface.BOLD));
+            statsCard.addView(row3);
+
+            View divider3 = new View(this);
+            divider3.setBackgroundColor(line);
+            statsCard.addView(divider3, fixedHeightMargins(1, 0, 14, 0, 14));
+
+            statsCard.addView(text("Recent check-in rhythm & time", 15, ink, Typeface.BOLD), margins(0, 0, 0, 8));
+
+            List<MoodHistoryStore.Entry> entries = MoodHistoryStore.loadAll(this);
+            int graphLimit = Math.min(entries.size(), 5);
+            for (int i = 0; i < graphLimit; i++) {
+                MoodHistoryStore.Entry entry = entries.get(i);
+                LinearLayout graphRow = new LinearLayout(this);
+                graphRow.setGravity(Gravity.CENTER_VERTICAL);
+                int fg = entry.okay ? sageInk : lavenderInk;
+                TextView dot = text("●", 14, fg, Typeface.NORMAL);
+                graphRow.addView(dot, new LinearLayout.LayoutParams(dp(20), LinearLayout.LayoutParams.WRAP_CONTENT));
+
+                TextView timeLabel = text(formatCheckInTime(entry.checkedAt), 13, mutedInk, Typeface.NORMAL);
+                graphRow.addView(timeLabel, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+
+                TextView moodText = text(entry.okay ? "I’m okay" : "Not really", 13, fg, Typeface.BOLD);
+                graphRow.addView(moodText);
+
+                statsCard.addView(graphRow, margins(0, i == 0 ? 0 : 6, 0, 0));
+            }
+        }
     }
 
     private void showHistoryScreen() {
@@ -254,6 +367,8 @@ public class MainActivity extends android.app.Activity {
         TextView subtitle = text("Private history, stored only on this phone.", 16, mutedInk, Typeface.NORMAL);
         subtitle.setLineSpacing(dp(3), 1f);
         page.addView(subtitle, margins(0, 8, 0, 18));
+
+        page.addView(createStatisticsCard(), margins(0, 0, 0, 14));
 
         List<MoodHistoryStore.Entry> entries = MoodHistoryStore.loadAll(this);
         if (entries.isEmpty()) {
@@ -475,15 +590,23 @@ public class MainActivity extends android.app.Activity {
     }
 
     private void respond(boolean okay) {
+        long lastTime = MoodHistoryStore.getLastCheckInTime(this);
+        long interval = UserPreferences.getInterval(this);
+        long cooldown = Math.max(5 * 60 * 1000L, interval);
+        long elapsed = System.currentTimeMillis() - lastTime;
+        if (lastTime > 0 && elapsed < cooldown) {
+            updateMoodCardState();
+            return;
+        }
+
         MoodHistoryStore.record(this, okay);
         refreshHistoryPreview();
-        reassurance.setText(okay
-                ? "Glad to hear it. You can carry that feeling forward."
-                : "Thank you for noticing. Take one slow breath — that’s enough for now.");
-        reassurance.setTextColor(okay ? sageInk : lavenderInk);
-        reassurance.setVisibility(View.VISIBLE);
-        reassurance.setAlpha(0f);
-        reassurance.animate().alpha(1f).setDuration(180).start();
+        updateMoodCardState();
+        CheckInWidgetProvider.updateWidgets(this);
+        if (reassurance != null) {
+            reassurance.setAlpha(0f);
+            reassurance.animate().alpha(1f).setDuration(180).start();
+        }
     }
 
     @Override

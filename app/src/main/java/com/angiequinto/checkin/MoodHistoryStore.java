@@ -47,8 +47,48 @@ public final class MoodHistoryStore {
         return entries;
     }
 
+    public static long getLastCheckInTime(Context context) {
+        List<Entry> entries = loadAll(context);
+        if (entries.isEmpty()) return 0L;
+        return entries.get(0).checkedAt;
+    }
+
     public static void clear(Context context) {
         new Database(context).getWritableDatabase().delete(TABLE, null, null);
+    }
+
+    public static Stats loadStats(Context context) {
+        List<Entry> entries = loadAll(context);
+        int okayCount = 0;
+        for (Entry entry : entries) {
+            if (entry.okay) {
+                okayCount++;
+            }
+        }
+        int total = entries.size();
+        return new Stats(total, okayCount, total - okayCount);
+    }
+
+    public static final class Stats {
+        public final int total;
+        public final int okayCount;
+        public final int notOkayCount;
+
+        Stats(int total, int okayCount, int notOkayCount) {
+            this.total = total;
+            this.okayCount = okayCount;
+            this.notOkayCount = notOkayCount;
+        }
+
+        public int okayPercentage() {
+            if (total == 0) return 0;
+            return Math.round((float) okayCount * 100f / total);
+        }
+
+        public int notOkayPercentage() {
+            if (total == 0) return 0;
+            return 100 - okayPercentage();
+        }
     }
 
     public static final class Entry {

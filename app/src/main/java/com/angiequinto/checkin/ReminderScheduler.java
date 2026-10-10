@@ -19,16 +19,15 @@ public final class ReminderScheduler {
 
     public static void disable(Context context) {
         UserPreferences.setRemindersEnabled(context, false);
-        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        alarmManager.cancel(reminderPendingIntent(context));
+        updateOrCancel(context);
     }
 
     public static boolean isEnabled(Context context) {
-        return UserPreferences.remindersEnabled(context);
+        return UserPreferences.remindersEnabled(context) || CheckInWidgetProvider.hasWidgets(context);
     }
 
     public static void scheduleNext(Context context) {
-        if (!isEnabled(context) || CheckInWidgetProvider.hasWidgets(context)) {
+        if (!isEnabled(context)) {
             return;
         }
 
@@ -41,6 +40,15 @@ public final class ReminderScheduler {
                 triggerAt,
                 reminderPendingIntent(context)
         );
+    }
+
+    public static void updateOrCancel(Context context) {
+        if (isEnabled(context)) {
+            scheduleNext(context);
+        } else {
+            AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+            alarmManager.cancel(reminderPendingIntent(context));
+        }
     }
 
     private static PendingIntent reminderPendingIntent(Context context) {

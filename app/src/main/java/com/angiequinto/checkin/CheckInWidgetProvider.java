@@ -73,7 +73,7 @@ public class CheckInWidgetProvider extends AppWidgetProvider {
 
             appWidgetManager.updateAppWidget(appWidgetId, views);
         }
-        ReminderScheduler.scheduleNext(context);
+        ReminderScheduler.updateOrCancel(context);
     }
 
     public static void updateWidgets(Context context) {
@@ -88,8 +88,14 @@ public class CheckInWidgetProvider extends AppWidgetProvider {
     }
 
     @Override
+    public void onEnabled(Context context) {
+        super.onEnabled(context);
+        ReminderScheduler.updateOrCancel(context);
+    }
+
+    @Override
     public void onDeleted(Context context, int[] appWidgetIds) {
         super.onDeleted(context, appWidgetIds);
-        ReminderScheduler.scheduleNext(context);
+        ReminderScheduler.updateOrCancel(context);
     }
 }

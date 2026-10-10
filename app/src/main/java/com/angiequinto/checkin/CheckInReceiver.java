@@ -27,7 +27,11 @@ public class CheckInReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         String action = intent.getAction();
         if (ACTION_REMINDER.equals(action)) {
-            showReminder(context);
+            if (CheckInWidgetProvider.hasWidgets(context)) {
+                CheckInWidgetProvider.updateWidgets(context);
+            } else {
+                showReminder(context);
+            }
             ReminderScheduler.scheduleNext(context);
             return;
         }
